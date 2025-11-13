@@ -18,7 +18,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.send('Hello! This is the backend speaking.');
 });
-app.use('/api/auth', authRoutes)
+app.use('/api', authRoutes)
 
 // --- Connect to MongoDB and Start Server ---
 if (!MONGODB_URI) {
