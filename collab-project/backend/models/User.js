@@ -27,6 +27,26 @@ const UserSchema = new mongoose.Schema(
         passwordResetExpires:{
             type :Date
         },
+        isVerified:{
+            type: Boolean,
+            default: false,
+        },
+        verificationOTP:{
+            type: String,
+            default: null,
+        },
+        verificationOTPExpires:{
+            type: Date,
+            default: null,
+        },
+        loginOTP:{
+            type: String,
+            default: null,
+        },
+        loginOTPExpires:{
+            type: Date,
+            default: null,
+        },
     },
     {
         timestamps: true,

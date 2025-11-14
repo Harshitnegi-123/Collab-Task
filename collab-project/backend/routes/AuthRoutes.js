@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import crypto from 'crypto'
+import { generateOTP, sendLoginOTP, sendVerificationEmail } from "../utils/sendEmail.js";
 
 const router = express.Router();
 
@@ -21,18 +22,50 @@ router.post("/register", async (req, res) => {
     }
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const otp = generateOTP();
+    const otpExpires = Date.now() + 10*60*1000; //!0 minutes i guess.
     const newUser = new User({
       username: username,
       email: email,
       password: hashedPassword,
+      verificationOTP: otp,
+      verificationOTPExpires: otpExpires,
+      isVerified: false,
     });
     await newUser.save();
-    res.status(201).json({ message: "Hurray! User created successfully." });
+    await sendVerificationEmail(newUser.email, otp);
+    res.status(201).json({ message: "Check email for verification" });
   } catch (error) {
     console.error("Oops!! looks like an error occurred.", error);
 
     res.status(500).json({ error: "Server error, please try again later !" });
   }
+});
+router.post('/verify-email', async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        const user = await User.findOne({ 
+            email: email, 
+            verificationOTP: otp,
+            verificationOTPExpires: { $gt: Date.now() } // Check if not expired
+        });
+
+        if (!user) {
+            return res.status(400).json({ error: "Invalid or expired OTP." });
+        }
+
+        // Verification successful!
+        user.isVerified = true;
+        user.verificationOTP = null;
+        user.verificationOTPExpires = null;
+        await user.save();
+
+        res.status(200).json({ message: "Email verified successfully! You can now log in." });
+
+    } catch (error) {
+        console.error("Error verifying email:", error);
+        res.status(500).json({ error: "Server error" });
+    }
 });
 
 router.post("/login", async (req, res) => {
@@ -47,32 +80,69 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(400).json({ error: "Invalid credentials" });
     }
+    if(!user.isVerified){
+      return res.status(401).json({error: "Email not verified, Verify again and continue !"});
+    }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ error: "Invalid credentials" });
     }
-    const payload = {
-      id: user._id,
-      username: user.username,
-    };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
-    res.status(200).json({
-      success: true,
-      message: "Login successful",
-      token: token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-      },
-    });
+    const otp = generateOTP();
+    const otpExpires = Date.now() + 5*60*1000;
+    user.loginOTP = otp;
+    user.loginOTPExpires = otpExpires;
+    await user.save();
+    await sendLoginOTP(user.email, otp);
+    res.status(200).json({message: "Credentials verified, Check for OTP !"});
+    
   } catch (error) {
     console.error("Error logging in: ", error);
     res.status(500).json({ error: "Server error, please try again" }); // Use 500 for server errors
   }
 });
+
+//verify login
+router.post('/verify-login', async (req, res)=>{
+  try{
+    const{email,otp} = req.body;
+    const user = await User.findOne({
+      email: email,
+      loginOTP: otp,
+      loginOTPExpires: { $gt: Date.now()} //checking if not expired;
+
+    });
+    if(!user){
+      return res.status(400).json({error: "Invalid OTP, try again !"})
+    }
+    user.loginOTP = null;
+    user.loginOTPExpires = null;
+    await user.save();
+    const payload = {
+            id: user._id,
+            username: user.username,
+        };
+        const token = jwt.sign(
+            payload,
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        res.status(200).json({
+            message: 'Login successful!',
+            token: token,
+            user: {
+                id: user._id,
+                username: user.username,
+                email: user.email
+            }
+        });
+
+    } catch (error) {
+        console.error("Error verifying login:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+  }
+)
 
 //forgot password request token
 router.post("/forgot-password", async (req, res) => {
@@ -81,7 +151,7 @@ router.post("/forgot-password", async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res
-        .status(400)
+        .status(200)
         .json({ message: "If a email exists, resent link will be shared. " });
     }
     const resetToken = crypto.randomBytes(32).toString("hex");
