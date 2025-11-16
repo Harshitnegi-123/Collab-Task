@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "start": "nodemon server.js",
-    "dev": "bun --hot server.js"
+    "dev": "nodemon Server.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
