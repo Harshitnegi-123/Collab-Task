@@ -4,6 +4,21 @@ import Button from "../UI/Button";
 import { loginUser } from "../../Services/authService";
 import { useNavigate } from "react-router-dom";
 
+const inlineStyles = {
+  root: { display: "flex", flexDirection: "column", gap: "1rem" },
+  header: { textAlign: "center", marginBottom: "0.5rem" },
+  title: { fontSize: "1.5rem", fontWeight: 700, color: "var(--color-text)" },
+  subtitle: { fontSize: "0.875rem", color: "var(--color-muted)" },
+  alert: {
+    borderRadius: 8,
+    padding: "0.75rem 1rem",
+    fontSize: "0.875rem",
+    marginBottom: "0.5rem",
+  },
+  error: { background: "var(--color-error)", color: "#fff" },
+  success: { background: "var(--color-success)", color: "#0f2f1f" },
+};
+
 const LoginForm = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -39,21 +54,23 @@ const LoginForm = () => {
     };
 
     return (
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} style={inlineStyles.root}>
+            <div style={inlineStyles.header}>
+                <h2 style={inlineStyles.title}>Welcome Back</h2>
+                <p style={inlineStyles.subtitle}>Login to your workspace</p>
+            </div>
 
-            <h2>Welcome Back</h2>
-            <p>Login to your workspace</p>
-
-
-
-            {error && <p className="error-msg">{error}</p>}
-            {success && <p className="success-msg">{success}</p>}
+            {error && (
+                <p style={{ ...inlineStyles.alert, ...inlineStyles.error }}>{error}</p>
+            )}
+            {success && (
+                <p style={{ ...inlineStyles.alert, ...inlineStyles.success }}>{success}</p>
+            )}
 
             <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
             <Button text="Login" type="submit" />
-
         </form>
     )
 }
