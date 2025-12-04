@@ -3,6 +3,7 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import 'dotenv/config';
 import authRoutes from './routes/AuthRoutes.js';
+import projectRoutes from './routes/ProjectRoutes.js';
 
 
 // Set up the Express app
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
     res.send('Hello! This is the backend speaking.');
 });
 app.use('/api', authRoutes)
+app.use('/api/projects', projectRoutes);
 
 // --- Connect to MongoDB and Start Server ---
 if (!MONGODB_URI) {
